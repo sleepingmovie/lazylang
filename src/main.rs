@@ -29,7 +29,7 @@ impl std::fmt::Display for Value {
             Value::List(items) => {
                 let strs: Vec<String> = items.iter().map(|v| {
                     match v {
-                        Value::Text(t) => format!("\"{}\"", t), // Quote strings in lists
+                        Value::Text(t) => format!("\"{}\"", t),
                         _ => format!("{}", v)
                     }
                 }).collect();
@@ -47,13 +47,14 @@ enum Statement {
     Assign(String, Expr),
     AugAssign(String, String, Expr),
     IncDec(String, String),
-    If(Expr, Vec<Statement>, Vec<Statement>),
+    If(Expr, Vec<Statement>, Vec<(Expr, Vec<Statement>)>, Vec<Statement>),
     While(Expr, Vec<Statement>),
     For(String, Expr, Vec<Statement>),
     FunctionDef(String, Vec<String>, Vec<Statement>),
-    FunctionCall(String, Vec<Expr>),
+    QuickFunctionDef(String, Vec<String>, Expr),
+    FunctionCall(String, Vec<Expr>, bool), // name, args, mutates
     Return(Expr),
-    Input(String),
+    Input(Vec<String>, Option<String>, bool),
 }
 
 // --- EXPRESSIONS ---
@@ -66,7 +67,8 @@ enum Expr {
     List(Vec<Expr>),
     Index(Box<Expr>, Box<Expr>),
     BinaryOp(Box<Expr>, String, Box<Expr>),
-    FunctionCall(String, Vec<Expr>),
+    FunctionCall(String, Vec<Expr>, bool), // name, args, mutates
+    InputExpr,
 }
 
 // --- INTERPRETER ---
@@ -109,6 +111,22 @@ impl Interpreter {
         }
     }
 
+    fn read_input(&self, prompt: &str) -> String {
+        print!("{}", prompt);
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        input.trim().to_string()
+    }
+
+    fn parse_input_value(&self, input: &str) -> Value {
+        if let Ok(num) = input.parse::<f64>() {
+            Value::Number(num)
+        } else {
+            Value::Text(input.to_string())
+        }
+    }
+
     fn execute(&mut self, stmt: &Statement) -> Option<Value> {
         match stmt {
             Statement::Print(expr) => {
@@ -143,13 +161,18 @@ impl Interpreter {
                 self.set_var(name, new_val);
                 None
             }
-            Statement::If(cond, then_block, else_block) => {
+            Statement::If(cond, then_block, else_ifs, else_block) => {
                 let c_val = self.eval_expr(cond);
                 if matches!(c_val, Value::Bool(true)) {
                     return self.run_block(then_block);
-                } else {
-                    return self.run_block(else_block);
                 }
+                for (elif_cond, elif_block) in else_ifs {
+                    let elif_val = self.eval_expr(elif_cond);
+                    if matches!(elif_val, Value::Bool(true)) {
+                        return self.run_block(elif_block);
+                    }
+                }
+                return self.run_block(else_block);
             }
             Statement::While(cond, body) => {
                 while matches!(self.eval_expr(cond), Value::Bool(true)) {
@@ -176,21 +199,40 @@ impl Interpreter {
                 }
                 None
             }
-            Statement::FunctionCall(name, args) => {
-                let vals: Vec<Value> = args.iter().map(|a| self.eval_expr(a)).collect();
-                self.call_function(name, vals);
+            Statement::QuickFunctionDef(name, params, expr) => {
+                let body = vec![Statement::Return(expr.clone())];
+                if let Some(scope) = self.scopes.last_mut() {
+                    scope.insert(name.clone(), Value::Function(params.clone(), body));
+                }
                 None
             }
-            Statement::Input(var_name) => {
-                print!("? ");
-                io::stdout().flush().unwrap();
-                let mut input = String::new();
-                io::stdin().read_line(&mut input).unwrap();
-                let input = input.trim();
-                if let Ok(num) = input.parse::<f64>() {
-                    self.set_var(var_name, Value::Number(num));
+            Statement::FunctionCall(name, args, mutates) => {
+                let vals: Vec<Value> = args.iter().map(|a| self.eval_expr(a)).collect();
+                let result = self.call_function(name, vals, *mutates);
+
+                if *mutates {
+                    if let Some(Expr::Variable(var_name)) = args.first() {
+                        self.set_var(var_name, result.clone());
+                    }
+                }
+                None
+            }
+            Statement::Input(vars, prompt, is_iter) => {
+                if *is_iter {
+                    let base_prompt = prompt.as_ref().map(|s| s.as_str()).unwrap_or("+? ");
+                    for (i, var) in vars.iter().enumerate() {
+                        let actual_prompt = base_prompt.replace("{?}", &(i + 1).to_string());
+                        let input = self.read_input(&actual_prompt);
+                        let val = self.parse_input_value(&input);
+                        self.set_var(var, val);
+                    }
                 } else {
-                    self.set_var(var_name, Value::Text(input.to_string()));
+                    let actual_prompt = prompt.as_ref().map(|s| s.as_str()).unwrap_or("+? ");
+                    for var in vars {
+                        let input = self.read_input(actual_prompt);
+                        let val = self.parse_input_value(&input);
+                        self.set_var(var, val);
+                    }
                 }
                 None
             }
@@ -223,7 +265,13 @@ impl Interpreter {
                 let list_val = self.eval_expr(list_expr);
                 let index_val = self.eval_expr(index_expr);
                 if let (Value::List(items), Value::Number(idx)) = (list_val, index_val) {
-                    if (idx as usize) < items.len() { return items[idx as usize].clone(); }
+                    let i = idx as i64;
+                    let actual_idx = if i < 0 {
+                        (items.len() as i64 + i) as usize
+                    } else {
+                        i as usize
+                    };
+                    if actual_idx < items.len() { return items[actual_idx].clone(); }
                 }
                 Value::Nothing
             }
@@ -232,9 +280,20 @@ impl Interpreter {
                 let r = self.eval_expr(right);
                 self.apply_op(&l, op, &r)
             }
-            Expr::FunctionCall(name, args) => {
+            Expr::FunctionCall(name, args, mutates) => {
                 let arg_vals: Vec<Value> = args.iter().map(|a| self.eval_expr(a)).collect();
-                self.call_function(name, arg_vals)
+                let result = self.call_function(name, arg_vals, *mutates);
+
+                if *mutates {
+                    if let Some(Expr::Variable(var_name)) = args.first() {
+                        self.set_var(var_name, result.clone());
+                    }
+                }
+                result
+            }
+            Expr::InputExpr => {
+                let input = self.read_input("+? ");
+                self.parse_input_value(&input)
             }
         }
     }
@@ -281,7 +340,7 @@ impl Interpreter {
         }
     }
 
-    fn call_function(&mut self, name: &str, args: Vec<Value>) -> Value {
+    fn call_function(&mut self, name: &str, args: Vec<Value>, mutates: bool) -> Value {
         match name {
             "?=" => {
                 if let Some(Value::Number(max_float)) = args.get(0) {
@@ -345,6 +404,65 @@ impl Interpreter {
                 if let Some(Value::Bool(b)) = args.get(0) { return Value::Bool(!b); }
                 Value::Bool(false)
             },
+            "<>" => {
+                if let Some(Value::List(items)) = args.get(0) {
+                    let mut reversed = items.clone();
+                    reversed.reverse();
+                    return Value::List(reversed);
+                }
+                Value::Nothing
+            },
+            "++" => {
+                if let Some(Value::List(items)) = args.get(0) {
+                    let mut sorted = items.clone();
+                    sorted.sort_by(|a, b| {
+                        match (a, b) {
+                            (Value::Number(x), Value::Number(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
+                            (Value::Text(x), Value::Text(y)) => x.cmp(y),
+                            _ => std::cmp::Ordering::Equal,
+                        }
+                    });
+                    return Value::List(sorted);
+                }
+                Value::Nothing
+            },
+            "--" => {
+                if let Some(Value::List(items)) = args.get(0) {
+                    let mut sorted = items.clone();
+                    sorted.sort_by(|a, b| {
+                        match (a, b) {
+                            (Value::Number(x), Value::Number(y)) => y.partial_cmp(x).unwrap_or(std::cmp::Ordering::Equal),
+                            (Value::Text(x), Value::Text(y)) => y.cmp(x),
+                            _ => std::cmp::Ordering::Equal,
+                        }
+                    });
+                    return Value::List(sorted);
+                }
+                Value::Nothing
+            },
+            "><" => {
+                if let (Some(Value::List(items)), Some(val)) = (args.get(0), args.get(1)) {
+                    for item in items {
+                        if item == val {
+                            return Value::Bool(true);
+                        }
+                    }
+                    return Value::Bool(false);
+                }
+                Value::Bool(false)
+            },
+            "<<" => {
+                if let Some(Value::List(items)) = args.get(0) {
+                    let mut unique = Vec::new();
+                    for item in items {
+                        if !unique.contains(item) {
+                            unique.push(item.clone());
+                        }
+                    }
+                    return Value::List(unique);
+                }
+                Value::Nothing
+            },
             _ => {
                 let fn_val = self.get_var(name);
                 if let Value::Function(params, body) = fn_val {
@@ -370,7 +488,17 @@ impl Interpreter {
 // --- PARSER ---
 
 fn parse(code: &str) -> Vec<Statement> {
-    let lines: Vec<&str> = code.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+    let lines: Vec<&str> = code.lines()
+        .map(|l| {
+            if let Some(idx) = l.find("//") {
+                &l[..idx]
+            } else {
+                l
+            }
+        })
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
     let mut idx = 0;
     parse_lines(&lines, &mut idx)
 }
@@ -380,9 +508,34 @@ fn parse_lines(lines: &[&str], current: &mut usize) -> Vec<Statement> {
     while *current < lines.len() {
         let line = lines[*current];
 
-        if line == "<-" || line == "<=" {
+        if line == "}" {
             *current += 1;
             return statements;
+        }
+
+        if line.starts_with("??") {
+            println!("Error: Unexpected '??' without matching '?' (Orphaned Else)");
+            *current += 1;
+            let _ = parse_lines(lines, current);
+            continue;
+        }
+
+        if line.contains("~>") {
+            let parts: Vec<&str> = line.split("~>").collect();
+            let sig = parts[0].trim();
+            if let Some(paren_idx) = sig.find('(') {
+                let name = sig[..paren_idx].trim().to_string();
+                let params_str = sig[paren_idx + 1..].trim_end_matches(')').trim();
+                let params: Vec<String> = if params_str.is_empty() { vec![] }
+                else { params_str.split_whitespace().map(|s| s.to_string()).collect() };
+
+                let expr_str = parts[1].trim();
+                let expr = parse_expr(expr_str);
+
+                statements.push(Statement::QuickFunctionDef(name, params, expr));
+                *current += 1;
+                continue;
+            }
         }
 
         if line.contains("=>") && !line.starts_with('"') {
@@ -402,7 +555,8 @@ fn parse_lines(lines: &[&str], current: &mut usize) -> Vec<Statement> {
         }
 
         if line.starts_with("@ ") {
-            let cond = parse_expr(line[2..].trim());
+            let cond_str = line[2..].trim().trim_end_matches('{').trim();
+            let cond = parse_expr(cond_str);
             *current += 1;
             let body = parse_lines(lines, current);
             statements.push(Statement::While(cond, body));
@@ -410,26 +564,55 @@ fn parse_lines(lines: &[&str], current: &mut usize) -> Vec<Statement> {
         }
 
         if line.starts_with(">> ") {
-            let content = line[2..].trim();
-            if let Some(space_idx) = content.find(char::is_whitespace) {
-                let var = content[..space_idx].trim().to_string();
-                let list_expr = parse_expr(content[space_idx..].trim());
+            let content = line[3..].trim();
+            if let Some(first_space) = content.find(char::is_whitespace) {
+                let var_name = content[..first_space].trim().to_string();
+                let mut rest = content[first_space..].trim();
+
+                if rest.starts_with("->") {
+                    rest = rest[2..].trim();
+                }
+
+                let list_expr_str = rest.trim_end_matches('{').trim();
+                let list_expr = parse_expr(list_expr_str);
+
                 *current += 1;
                 let body = parse_lines(lines, current);
-                statements.push(Statement::For(var, list_expr, body));
+                statements.push(Statement::For(var_name, list_expr, body));
                 continue;
             }
         }
 
-        if line.starts_with("?") {
-            let content = line[1..].trim();
-            if is_condition(content) {
-                let cond = parse_expr(content);
-                *current += 1;
-                let body = parse_lines(lines, current);
-                statements.push(Statement::If(cond, body, vec![]));
-                continue;
+        if line.starts_with("? ") && !line.contains(':') {
+            let cond_str = line[2..].trim().trim_end_matches('{').trim();
+            let cond = parse_expr(cond_str);
+            *current += 1;
+            let then_block = parse_lines(lines, current);
+
+            let mut else_ifs = Vec::new();
+            let mut else_block = Vec::new();
+
+            while *current < lines.len() {
+                let next_line = lines[*current];
+                let next_clean = next_line.trim().trim_end_matches('{').trim();
+
+                if next_clean == "??" {
+                    *current += 1;
+                    else_block = parse_lines(lines, current);
+                    break;
+                } else if next_line.starts_with("?? ") {
+                    let elif_cond_str = next_line[3..].trim().trim_end_matches('{').trim();
+                    let elif_cond = parse_expr(elif_cond_str);
+                    *current += 1;
+                    let elif_block = parse_lines(lines, current);
+                    else_ifs.push((elif_cond, elif_block));
+                } else {
+                    break;
+                }
             }
+
+            statements.push(Statement::If(cond, then_block, else_ifs, else_block));
+            continue;
         }
 
         if let Some(stmt) = parse_simple_statement(line) {
@@ -440,36 +623,37 @@ fn parse_lines(lines: &[&str], current: &mut usize) -> Vec<Statement> {
     statements
 }
 
-fn is_condition(s: &str) -> bool {
-    let ops = ["==", "!=", ">", "<", "+", "-", "*", "/", "(", ")", "yes", "no", "true", "false", "!"];
-    for op in &ops { if s.contains(op) { return true; } }
-    if s.parse::<f64>().is_ok() { return true; }
-    false
-}
-
 fn parse_simple_statement(line: &str) -> Option<Statement> {
     let line = line.trim();
 
-    if line.starts_with("?") {
-        let content = line[1..].trim();
-        if !is_condition(content) {
-            return Some(Statement::Input(content.to_string()));
+    if line.starts_with("+? ") {
+        let content = line[3..].trim();
+        if let Some(colon_idx) = content.find(':') {
+            let vars_part = content[..colon_idx].trim();
+            let prompt_part = content[colon_idx + 1..].trim();
+            let vars: Vec<String> = vars_part.split_whitespace().map(|s| s.to_string()).collect();
+            let prompt = if prompt_part.starts_with('"') && prompt_part.ends_with('"') {
+                prompt_part[1..prompt_part.len()-1].to_string()
+            } else {
+                prompt_part.to_string()
+            };
+            let is_iter = prompt.contains("{?}");
+            return Some(Statement::Input(vars, Some(prompt), is_iter));
+        } else {
+            let vars: Vec<String> = content.split_whitespace().map(|s| s.to_string()).collect();
+            return Some(Statement::Input(vars, None, false));
         }
     }
 
     if line.starts_with("->") {
-        let content = if line.starts_with("-> ") {
-            line[3..].trim()
-        } else {
-            line[2..].trim()
-        };
+        let content = if line.starts_with("-> ") { line[3..].trim() } else { line[2..].trim() };
         return Some(Statement::Return(parse_expr(content)));
     }
 
-    if line.ends_with("++") {
+    if line.ends_with("++") && !line.contains('(') {
         return Some(Statement::IncDec(line[..line.len()-2].trim().to_string(), "++".to_string()));
     }
-    if line.ends_with("--") {
+    if line.ends_with("--") && !line.contains('(') {
         return Some(Statement::IncDec(line[..line.len()-2].trim().to_string(), "--".to_string()));
     }
 
@@ -487,30 +671,35 @@ fn parse_simple_statement(line: &str) -> Option<Statement> {
         return Some(Statement::Assign(var, expr));
     }
 
-    if !line.starts_with("=>") && !line.starts_with("<=") && !line.starts_with("<-") {
-        return Some(Statement::Print(parse_expr(line)));
+    if !line.starts_with("=>") && !line.starts_with("}") {
+        let expr = parse_expr(line);
+        match expr {
+            Expr::FunctionCall(name, args, true) => return Some(Statement::FunctionCall(name, args, true)),
+            _ => return Some(Statement::Print(expr)),
+        }
     }
 
     None
 }
 
+// --- HELPER FUNCTIONS ---
+
 fn find_assign_op(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let chars: Vec<(usize, char)> = s.char_indices().collect();
     let mut i = 0;
     let mut in_quotes = false;
 
     while i < chars.len() {
-        if chars[i] == '"' {
-            in_quotes = !in_quotes;
-        }
+        let (byte_idx, c) = chars[i];
+        if c == '"' { in_quotes = !in_quotes; }
 
-        if !in_quotes && chars[i] == '=' {
-            let prev = if i > 0 { chars[i-1] } else { ' ' };
-            let next = if i+1 < chars.len() { chars[i+1] } else { ' ' };
+        if !in_quotes && c == '=' {
+            let prev = if i > 0 { chars[i-1].1 } else { ' ' };
+            let next = if i+1 < chars.len() { chars[i+1].1 } else { ' ' };
             if prev != '>' && prev != '<' && prev != '!' && prev != '='
-                && prev != '+' && prev != '-' && prev != '*' && prev != '/'
+                && prev != '+' && prev != '-' && prev != '*' && prev != '/' && prev != '~'
                 && next != '=' {
-                return Some(i);
+                return Some(byte_idx);
             }
         }
         i += 1;
@@ -521,9 +710,11 @@ fn find_assign_op(s: &str) -> Option<usize> {
 fn parse_expr(s: &str) -> Expr {
     let s = s.trim();
 
+    if s == "+??" { return Expr::InputExpr; }
+
     if s.starts_with('!') && !s.starts_with("!=") {
         let operand = parse_expr(&s[1..]);
-        return Expr::FunctionCall("!".to_string(), vec![operand]);
+        return Expr::FunctionCall("!".to_string(), vec![operand], false);
     }
 
     let logical_ops = ["==", "!=", ">=", "<=", ">", "<"];
@@ -559,28 +750,83 @@ fn parse_expr(s: &str) -> Expr {
         }
     }
 
-    if s.ends_with(')') {
+    if s.ends_with(")*") {
+        if let Some(idx) = find_matching_open(&s[..s.len()-1], '(', ')') {
+            let name = s[..idx].trim().to_string();
+            let args_str = s[idx+1..s.len()-2].trim();
+            let args = parse_function_args(args_str);
+            return Expr::FunctionCall(name, args, true);
+        }
+    } else if s.ends_with(')') {
         if let Some(idx) = find_matching_open(s, '(', ')') {
             let name = s[..idx].trim().to_string();
+
+            if name.is_empty() {
+                return parse_expr(&s[idx+1..s.len()-1]);
+            }
+
             let args_str = s[idx+1..s.len()-1].trim();
-            let args: Vec<Expr> = if args_str.is_empty() { vec![] }
-            else { split_args_outside_parens(args_str).into_iter().map(|i| parse_expr(&i)).collect() };
-            return Expr::FunctionCall(name, args);
+            let args = parse_function_args(args_str);
+            return Expr::FunctionCall(name, args, false);
         }
     }
 
     if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
         return Expr::Text(s[1..s.len()-1].to_string());
     }
+
     if let Ok(n) = s.parse::<f64>() { return Expr::Number(n); }
+
     if s == "yes" || s == "true" { return Expr::Bool(true); }
     if s == "no" || s == "false" { return Expr::Bool(false); }
 
     Expr::Variable(s.to_string())
 }
 
+fn parse_function_args(args_str: &str) -> Vec<Expr> {
+    if args_str.is_empty() { return vec![]; }
+    let arrow_parts = split_by_arrow(args_str);
+    if arrow_parts.len() > 1 {
+        return arrow_parts.iter().map(|p| parse_expr(p.trim())).collect();
+    }
+    let space_parts = split_args_outside_parens(arrow_parts[0]);
+    space_parts.iter().map(|p| parse_expr(p.trim())).collect()
+}
+
+fn split_by_arrow(s: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let chars: Vec<(usize, char)> = s.char_indices().collect();
+    let mut current_byte_start = 0;
+    let mut i = 0;
+    let mut in_quotes = false;
+    let mut paren_depth = 0;
+
+    while i < chars.len() {
+        let (byte_idx, c) = chars[i];
+        if c == '"' { in_quotes = !in_quotes; }
+
+        if !in_quotes {
+            if c == '(' { paren_depth += 1; }
+            else if c == ')' { paren_depth -= 1; }
+
+            if paren_depth == 0 && i + 1 < chars.len() && c == '-' && chars[i+1].1 == '>' {
+                result.push(&s[current_byte_start..byte_idx]);
+                i += 2;
+                if i < chars.len() { current_byte_start = chars[i].0; }
+                else { current_byte_start = s.len(); }
+                continue;
+            }
+        }
+        i += 1;
+    }
+
+    if current_byte_start < s.len() { result.push(&s[current_byte_start..]); }
+    else if result.is_empty() { result.push(s); }
+    result
+}
+
 fn find_op_outside_parens(s: &str, op: &str, reverse: bool) -> Option<usize> {
-    let s_chars: Vec<char> = s.chars().collect();
+    let s_chars: Vec<(usize, char)> = s.char_indices().collect();
     let op_chars: Vec<char> = op.chars().collect();
     let len = s_chars.len();
     let op_len = op_chars.len();
@@ -589,11 +835,35 @@ fn find_op_outside_parens(s: &str, op: &str, reverse: bool) -> Option<usize> {
 
     let check_at = |i: usize| -> bool {
         if i + op_len > len { return false; }
-        if &s_chars[i..i+op_len] == &op_chars[..] {
-            if op == "-" && i == 0 { return false; }
-            return true;
+
+        if i == 0 || i + op_len == len { return false; }
+
+        if op == "<" {
+            if i + 1 < len && s_chars[i+1].1 == '>' { return false; }
+            if i > 0 && s_chars[i-1].1 == '>' { return false; }
+            if i + 1 < len && s_chars[i+1].1 == '<' { return false; }
+            if i > 0 && s_chars[i-1].1 == '<' { return false; }
         }
-        false
+        if op == ">" {
+            if i > 0 && s_chars[i-1].1 == '<' { return false; }
+            if i + 1 < len && s_chars[i+1].1 == '<' { return false; }
+            if i + 1 < len && s_chars[i+1].1 == '>' { return false; }
+            if i > 0 && s_chars[i-1].1 == '>' { return false; }
+        }
+        if op == "+" {
+            if i + 1 < len && s_chars[i+1].1 == '+' { return false; }
+            if i > 0 && s_chars[i-1].1 == '+' { return false; }
+        }
+        if op == "-" {
+            if i + 1 < len && s_chars[i+1].1 == '-' { return false; }
+            if i > 0 && s_chars[i-1].1 == '-' { return false; }
+            if i + 1 < len && s_chars[i+1].1 == '>' { return false; }
+        }
+
+        for k in 0..op_len {
+            if s_chars[i+k].1 != op_chars[k] { return false; }
+        }
+        return true;
     };
 
     let mut balance = 0;
@@ -603,25 +873,23 @@ fn find_op_outside_parens(s: &str, op: &str, reverse: bool) -> Option<usize> {
         let mut i = len;
         while i > 0 {
             i -= 1;
-            let c = s_chars[i];
+            let (_, c) = s_chars[i];
             if c == '"' { in_quotes = !in_quotes; }
             if !in_quotes {
                 if c == ')' || c == ']' { balance += 1; }
                 else if c == '(' || c == '[' { balance -= 1; }
-
-                if balance == 0 && check_at(i) { return Some(i); }
+                if balance == 0 && check_at(i) { return Some(s_chars[i].0); }
             }
         }
     } else {
         let mut i = 0;
         while i < len {
-            let c = s_chars[i];
+            let (_, c) = s_chars[i];
             if c == '"' { in_quotes = !in_quotes; }
             if !in_quotes {
                 if c == '(' || c == '[' { balance += 1; }
                 else if c == ')' || c == ']' { balance -= 1; }
-
-                if balance == 0 && check_at(i) { return Some(i); }
+                if balance == 0 && check_at(i) { return Some(s_chars[i].0); }
             }
             i += 1;
         }
@@ -630,18 +898,21 @@ fn find_op_outside_parens(s: &str, op: &str, reverse: bool) -> Option<usize> {
 }
 
 fn find_matching_open(s: &str, open: char, close: char) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let chars: Vec<(usize, char)> = s.char_indices().collect();
+    if chars.len() < 2 { return None; }
     let mut balance = 1;
     let mut i = chars.len() - 2;
-    while i > 0 {
-        if chars[i] == close { balance += 1; }
-        if chars[i] == open {
+
+    loop {
+        let (byte_idx, c) = chars[i];
+        if c == close { balance += 1; }
+        if c == open {
             balance -= 1;
-            if balance == 0 { return Some(i); }
+            if balance == 0 { return Some(byte_idx); }
         }
+        if i == 0 { break; }
         i -= 1;
     }
-    if i == 0 && chars[0] == open && balance == 0 { return Some(0); }
     None
 }
 
@@ -676,7 +947,6 @@ fn split_args_outside_parens(s: &str) -> Vec<String> {
 
     for part in args {
         let is_math_op = ["+", "-", "*", "/", "%", "==", "!=", ">", "<", ">=", "<=", "!"].contains(&part.as_str());
-
         let prev_ends_op = buffer.ends_with(|c: char| "+-*/%=!><".contains(c));
 
         if is_math_op || prev_ends_op {
@@ -705,7 +975,7 @@ fn main() {
             Err(e) => eprintln!("Error: {}", e),
         }
     } else {
-        println!("Lazy Lang REPL");
+        println!("Lazy Lang REPL - Type 'exit' to quit, 'run' to execute buffer");
         let mut interp = Interpreter::new();
         let mut buf = String::new();
         loop {

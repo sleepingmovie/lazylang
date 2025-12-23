@@ -1,6 +1,23 @@
-# The Lazy Programming Language
+<p align="center">
+    <strong>English</strong>
+  <a href="README_RU.md">Русский</a> ·
+</p>
+
+# The Lazy Programming Language v1.1
 
 **The world's first programming language with ZERO keywords!**
+
+## What's New in v1.1
+
+- **Smart Input System** - Custom prompts, multiple variables, iterative inputs with `+?`
+- **If-Else-If Chains** - Full conditional logic with `??` for else-if and else
+- **Quick Functions** - One-liner function definitions with `~>`
+- **Enhanced List Operations** - Reverse, sort, search, unique operations
+- **Full Unicode Support** - Variables in ANY language (русский, 中文, العربية, etc.)
+- **Arrow Parameters** - Use `->` in function calls for clarity
+- **Inline Input** - Use `+??` for temporary input in expressions
+- **Mutation Operators** - Use `*` suffix to mutate lists in-place
+- **Scoped Blocks** - Use `{}` for clear code structure
 
 ## What is Lazy?
 
@@ -53,41 +70,84 @@ Type code, then type `run` to execute it.
 
 Lazy has **ZERO keywords**. Everything is done with symbols:
 
-| Symbol | Purpose | Memory Aid |
-|--------|---------|------------|
-| `?` | Input OR Condition | Question mark = asking |
-| `@` | Loop | Looks like circular motion |
-| `->` | Return from function | Arrow pointing forward |
-| `=>` | Start function | Fat arrow = beginning |
-| `<=` | End any block | Arrow pointing back = ending |
-| `>>` | For-each loop | Fast forward through items |
-| `=` | Assign variable | Equals = store |
+| Symbol | Purpose                      | Memory Aid                     |
+|--------|------------------------------|--------------------------------|
+| `+?`   | Input with prompt            | Plus question = asking for input |
+| `+??`  | Inline input                 | Double question = temporary input |
+| `?`                               | If OR Else-if OR else        | Double question = alternative |
+| `@`    | Loop                         | Looks like circular motion     |
+| `->`   | Return OR arrow to parameter | Arrow pointing forward         |
+| `=>`   | Start function               | Fat arrow = beginning          |
+| `~>`   | Quick function               | Wavy arrow = shortcut          |
+| `}`    | End any block                | Closing brace = ending         |
+| `>>`   | For-each loop                | Fast forward through items     |
+| `=`    | Assign variable              | Equals = store                 |
+| `*`    | Mutate in-place              | Star = modify original         |
 
 ## Built-in Symbol Functions
 
 Instead of named functions like `len()`, Lazy uses **symbol operators**:
 
+### Core Operations
 | Symbol        | Function | Example                           |
 |---------------|----------|-----------------------------------|
 | `#(x)`        | Length/count | `#(mylist)` → 5                   |
 | `$(x)`        | To string | `$(42)` → "42"                    |
 | `~(x)`        | To number | `~("42")` → 42                    |
-| `^(list val)` | Push (add to list) | `^([1 2] 3)` → [1 2 3]            |
-| `v(list)`     | Pop (remove last) | `v([1 2 3])` → [1 2]              |
-| `&(list sep)` | Join to string | `&([1 2 3] "-")` → "1-2-3"        |
-| `\|(str sep)` | Split to list | `\|("a-b-c" "-")` → ["a" "b" "c"] |
 | `!(bool)`     | Not/opposite | `!(yes)` → no                     |
 | `?=(max)`     | Random 0 to max | `?=(10)` → random 0-9             |
 
-**Why symbols?** They're universal and visual!
-- `#` looks like counting tally marks
-- `$` looks like S for String
-- `~` is wavy like numbers
-- `^` points up = add/push
-- `v` points down = remove/pop
-- `&` connects = join
-- `|` divides = split
-- `!` = opposite/not
+### List Manipulation
+| Symbol        | Function | Example                           |
+|---------------|----------|-----------------------------------|
+| `^(list -> val)` | Push (add to end) | `^([1 2] -> 3)` → [1 2 3]            |
+| `v(list)`     | Pop (remove last) | `v([1 2 3])` → [1 2]              |
+| `<>(list)`    | Reverse | `<>([1 2 3])` → [3 2 1]           |
+| `++(list)`    | Sort ascending | `++([3 1 2])` → [1 2 3]           |
+| `--(list)`    | Sort descending | `--([1 3 2])` → [3 2 1]           |
+| `><(list -> val)` | Contains/search | `><([1 2 3] -> 2)` → yes             |
+| `<<(list)`    | Remove duplicates | `<<([1 2 2 3])` → [1 2 3]         |
+
+### String Operations
+| Symbol        | Function | Example                           |
+|---------------|----------|-----------------------------------|
+| `&(list -> sep)` | Join to string | `&([1 2 3] -> "-")` → "1-2-3"     |
+| `\|(str -> sep)` | Split to list | `\|("a-b-c" -> "-")` → ["a" "b" "c"] |
+
+### Mutation Operators
+
+By default, list operations return **new lists** without modifying the original:
+
+```lazy
+numbers = [1 2 3]
+new_numbers = ^(numbers -> 4)   // Returns new list [1 2 3 4]
+numbers                          // Still [1 2 3]
+```
+
+**Use `*` suffix to mutate the original list:**
+
+```lazy
+numbers = [1 2 3]
+^(numbers -> 4)*                 // Mutates numbers to [1 2 3 4]
+numbers                          // Now [1 2 3 4]
+```
+
+**Works with all list operations:**
+
+```lazy
+list = [3 1 4 1 5]
+
+++(list)*                        // Sort in place
+--(list)*                        // Sort descending in place
+<>(list)*                        // Reverse in place
+<<(list)*                        // Remove duplicates in place
+v(list)*                         // Pop in place
+```
+
+**Why this design?**
+- **Safe by default** - Operations don't accidentally modify your data
+- **Explicit mutations** - The `*` makes it clear when you're changing the original
+- **Flexible** - Choose whether to keep the original or modify it
 
 ## Core Syntax
 
@@ -101,13 +161,17 @@ Instead of named functions like `len()`, Lazy uses **symbol operators**:
 
 No print keyword needed!
 
-### 2. Variables
+### 2. Variables (Unicode Support!)
 
 ```lazy
 x = 5
 name = "Bob"
+имя = "Марат"
+名前 = "太郎"
 items = [1 2 3]
 ```
+
+**Lazy supports ANY unicode characters in variable names!** Use your native language!
 
 ### 3. Math Operations
 
@@ -121,86 +185,145 @@ remainder = 10 % 3
 
 Operators: `+` `-` `*` `/` `%` (modulo)
 
-### 4. User Input - The `?` Symbol
+### 4. Smart Input System
 
+**Basic input:**
 ```lazy
-"What's your name?"
-? name
++? name
 "Hello " + name
 ```
 
-Automatically detects if input is a number or text!
-
+**With custom prompt:**
 ```lazy
-"Enter age:"
-? age
-age
++? name : "What's your name? "
+"Hello " + name
 ```
 
-### 5. Functions - `=>` and `<=`
-
-**No `function`, `def`, or `fn` keyword!**
-
+**Multiple variables at once:**
 ```lazy
-greet() =>
-  "Hello from function"
-<=
-
-greet()
++? x y z : "Enter 3 numbers: "
+"You entered: " + $(x) + ", " + $(y) + ", " + $(z)
 ```
+
+**Iterative input (numbered prompts):**
+```lazy
++? num1 num2 num3 : "Enter number {?}: "
+```
+This will show:
+```
+Enter number 1: 
+Enter number 2: 
+Enter number 3: 
+```
+
+**Inline temporary input with `+??`:**
+```lazy
+add(a b c) ~> a + b + c
+
+result = add(5 +?? +??)
+"Result: " + $(result)
+```
+
+This allows you to input values directly in function calls or expressions without creating variables!
+
+**Multiple inline inputs:**
+```lazy
+multiply(a b c) ~> a * b * c
+
+// All three values from input
+multiply(+?? +?? +??)
+
+// Mix variables and input
+multiply(10 +?? 5)
+```
+
+### 5. Functions
+
+**Standard functions:**
+```lazy
+greet(name) => {
+  "Hello " + name
+}
+
+greet("Alice")
+```
+
+**Quick functions with `~>`:**
+```lazy
+add(a b) ~> a + b
+square(x) ~> x * x
+double(n) ~> n * 2
+
+add(5 3)
+square(4)
+double(10)
+```
+
+One line, no braces needed!
 
 **With parameters:**
 ```lazy
-add(a b) =>
-  -> a + b
-<=
-
-result = add(5 3)
-result
-```
-
-**With logic:**
-```lazy
-max(a b) =>
-  ? a > b
+max(a b) => {
+  ? a > b {
     -> a
-  <=
+  }
   -> b
-<=
+}
 
 bigger = max(10 20)
 bigger
 ```
 
-### 6. Conditionals - `?` Symbol
+**Using arrow parameters for clarity:**
+```lazy
+&(["apple" "banana" "cherry"] -> ", ")
+|(text -> " ")
+^(list -> 42)
+><(items -> 5)
+```
+
+### 6. If-Else-If Chains
 
 ```lazy
-x = 10
+score = 85
 
-? x > 5
+? score >= 90 {
+  "Grade: A"
+}
+?? score >= 80 {
+  "Grade: B"
+}
+?? score >= 70 {
+  "Grade: C"
+}
+?? {
+  "Grade: F"
+}
+```
+
+- `?` for if
+- `??` for else-if (with condition)
+- `??` for else (without condition)
+- `{}` defines scope
+
+**Simple if:**
+```lazy
+? x > 5 {
   "x is big"
-<=
-
-? x == 10
-  "x is exactly 10"
-<=
+}
 ```
 
 Comparison operators: `>` `<` `==` `!=` `>=` `<=`
-
-**Note:** Context determines if `?` is input or condition:
-- `? name` = input (just variable)
-- `? x > 5` = condition (has comparison)
 
 ### 7. Loops - `@` Symbol
 
 ```lazy
 counter = 0
 
-@ counter < 5
+@ counter < 5 {
   counter
   counter = counter + 1
-<=
+}
 
 "Done"
 ```
@@ -210,24 +333,23 @@ counter = 0
 ```lazy
 items = [1 2 3 4 5]
 
->> item items
-  item
-<=
+>> item items {
+  item * 2
+}
 ```
 
-This iterates through each item in the list!
-
+With unicode variables:
 ```lazy
-names = ["Alice" "Bob" "Charlie"]
+числа = [1 2 3 4 5]
 
->> name names
-  "Hello " + name
-<=
+>> число числа {
+  число * 2
+}
 ```
 
 ### 9. Lists (Arrays)
 
-**Create lists with spaces, not commas:**
+**Create lists:**
 ```lazy
 numbers = [1 2 3 4 5]
 names = ["Alice" "Bob" "Charlie"]
@@ -235,43 +357,76 @@ mixed = [1 "hello" 3]
 empty = []
 ```
 
-**Access items (0-indexed):**
+**Access items (0-indexed, supports negative indices):**
 ```lazy
 numbers = [10 20 30]
-first = numbers[0]
-first
-
-second = numbers[1]
-second
+first = numbers[0]      // 10
+last = numbers[-1]      // 30 (negative = from end)
+second = numbers[1]     // 20
 ```
 
-**Get length:**
+**Basic operations:**
 ```lazy
 items = [1 2 3 4 5]
-count = #(items)
-count
+
+// Length
+#(items)             // 5
+
+// Push (returns new list)
+new_list = ^(items -> 6)        // [1 2 3 4 5 6]
+items                            // Still [1 2 3 4 5]
+
+// Push (mutates original)
+^(items -> 6)*                   // Mutates items
+items                            // Now [1 2 3 4 5 6]
+
+// Pop (remove last)
+v(items)             // [1 2 3 4]
+
+// Combine
+list1 + list2        // Concatenate lists
 ```
 
-**Add items (push):**
+**Advanced List Operations:**
 ```lazy
-numbers = [1 2 3]
-bigger = ^(numbers 4)
-bigger
+numbers = [3 1 4 1 5 9 2 6]
+
+// Reverse (returns new)
+reversed = <>(numbers)          // [6 2 9 5 1 4 1 3]
+numbers                          // Still [3 1 4 1 5 9 2 6]
+
+// Reverse (mutates)
+<>(numbers)*                     // Mutates numbers
+numbers                          // Now [6 2 9 5 1 4 1 3]
+
+// Sort ascending
+sorted_asc = ++(numbers)         // [1 1 2 3 4 5 6 9]
+
+// Sort descending (mutates)
+--(numbers)*                     // Sorts in place
+
+// Search/contains
+><(numbers -> 5)                 // yes
+
+// Remove duplicates
+unique = <<(numbers)             // [3 1 4 5 9 2 6]
 ```
 
-**Remove last item (pop):**
+**Real example with mutations:**
 ```lazy
-numbers = [1 2 3 4]
-smaller = v(numbers)
-smaller
-```
+scores = [85 92 78 85 90]
 
-**Combine lists:**
-```lazy
-list1 = [1 2 3]
-list2 = [4 5 6]
-combined = list1 + list2
-combined
+// Remove duplicates in place
+<<(scores)*
+
+// Sort them in place
+++(scores)*
+
+scores                           // [78 85 90 92]
+
+// Check if 90 exists
+has_90 = ><(scores -> 90)
+has_90                           // yes
 ```
 
 ### 10. String Operations
@@ -281,14 +436,12 @@ combined
 first = "Hello"
 second = "World"
 message = first + " " + second
-message
 ```
 
 **Convert number to string:**
 ```lazy
 age = 25
 text = "I am " + $(age) + " years old"
-text
 ```
 
 **Convert string to number:**
@@ -296,21 +449,26 @@ text
 input = "42"
 num = ~(input)
 result = num + 10
-result
 ```
 
-**Join list to string:**
+**Join list to string (with arrow):**
 ```lazy
 words = ["Hello" "World" "Lazy"]
-sentence = &(words " ")
-sentence
+sentence = &(words -> " ")
+sentence                          // "Hello World Lazy"
+
+// Or with comma
+csv = &(words -> ", ")            // "Hello, World, Lazy"
 ```
 
-**Split string to list:**
+**Split string to list (with arrow):**
 ```lazy
 text = "apple,banana,cherry"
-fruits = |(text ",")
-fruits
+fruits = |(text -> ",")
+fruits                            // ["apple" "banana" "cherry"]
+
+// Split by space
+words = |(sentence -> " ")
 ```
 
 ### 11. Boolean Values
@@ -320,350 +478,406 @@ Use `yes` and `no` instead of true/false:
 is_ready = yes
 is_done = no
 
-? is_ready == yes
+? is_ready == yes {
   "Let's go"
-<=
+}
 ```
 
 **Not operator:**
 ```lazy
 ready = yes
 not_ready = !(ready)
-not_ready
+not_ready                         // no
 ```
 
 ### 12. Random Numbers
 
 ```lazy
-dice = ?=(6)
-"You rolled:"
-dice
-```
+dice = ?=(6) + 1                  // Random 1-6
+"You rolled: " + $(dice)
 
-Generates random number from 0 to max-1.
+coin = ?=(2)                      // Random 0-1
+? coin == 0 {
+  "Heads"
+}
+?? {
+  "Tails"
+}
+```
 
 ## Complete Examples
 
-### Example 1: Hello User
+### Example 1: Hello User (New Input System)
 
 ```lazy
-"What's your name?"
-? name
-"Hello " + name + "! Welcome to Lazy!"
++? name : "What's your name? "
++? age : "How old are you? "
+
+"Hello " + name + "!"
+"You are " + $(age) + " years old."
 ```
 
-### Example 2: Calculator
+### Example 2: Multiple Inputs
 
 ```lazy
-"Enter first number:"
-? a
-"Enter second number:"
-? b
++? x y z : "Enter value: "
 
-sum = a + b
+sum = x + y + z
 "Sum: " + $(sum)
 
-product = a * b
-"Product: " + $(product)
+average = sum / 3
+"Average: " + $(average)
 ```
 
-### Example 3: Countdown
+### Example 3: Iterative Input
 
 ```lazy
-count = 10
++? num1 num2 num3 : "Enter number {?}: "
 
-@ count > 0
-  count
-  count = count - 1
-<=
-
-"Liftoff!"
+total = num1 + num2 + num3
+"Total: " + $(total)
 ```
 
-### Example 4: Guessing Game
+### Example 4: Inline Input
 
 ```lazy
-secret = 7
+add(a b c) ~> a + b + c
+multiply(a b) ~> a * b
 
-"Guess a number 1-10:"
-? guess
+"Calculator with inline input"
 
-? guess == secret
-  "You win!"
-<=
+"Addition:"
+result1 = add(+?? +?? +??)
+"Result: " + $(result1)
 
-? guess > secret
-  "Too high!"
-<=
-
-? guess < secret
-  "Too low!"
-<=
+"Multiplication:"
+result2 = multiply(+?? +??)
+"Result: " + $(result2)
 ```
 
-### Example 5: Factorial Function
+### Example 5: Grade Calculator
 
 ```lazy
-factorial(n) =>
-  ? n <= 1
-    -> 1
-  <=
-  result = n * factorial(n - 1)
-  -> result
-<=
++? score : "Enter your score: "
 
-"Enter a number:"
-? num
-answer = factorial(num)
-$(num) + " factorial is " + $(answer)
+? score >= 90 {
+  "Grade: A - Excellent!"
+}
+?? score >= 80 {
+  "Grade: B - Good job!"
+}
+?? score >= 70 {
+  "Grade: C - Not bad"
+}
+?? score >= 60 {
+  "Grade: D - Need improvement"
+}
+?? {
+  "Grade: F - Study more!"
+}
 ```
 
-### Example 6: List Operations
+### Example 6: Quick Math Functions
 
 ```lazy
-numbers = [1 2 3 4 5]
-"Original list:"
+// Define quick functions
+add(a b) ~> a + b
+subtract(a b) ~> a - b
+multiply(a b) ~> a * b
+divide(a b) ~> a / b
+
++? x y : "Enter two numbers: "
+
+"Sum: " + $(add(x y))
+"Difference: " + $(subtract(x y))
+"Product: " + $(multiply(x y))
+"Quotient: " + $(divide(x y))
+```
+
+### Example 7: List Sorting with Mutations
+
+```lazy
+numbers = [42 17 8 99 23 56 31]
+
+"Original: "
 numbers
 
-"List length:"
-#(numbers)
+"Sorted ascending (new list): "
+++(numbers)
 
-"Add 6:"
-numbers = ^(numbers 6)
+"Original still unchanged: "
 numbers
 
-"Remove last:"
-numbers = v(numbers)
+"Now sorting in place:"
+++(numbers)*
 numbers
 
-"First item:"
-numbers[0]
+"Reversing in place:"
+<>(numbers)*
+numbers
 ```
 
-### Example 7: For-Each Loop
+### Example 8: Remove Duplicates
 
 ```lazy
-fruits = ["apple" "banana" "cherry"]
+items = [1 2 3 2 4 3 5 1]
 
-"Printing fruits:"
->> fruit fruits
-  fruit
-<=
+"Original: "
+items
 
-"Counting:"
->> item [1 2 3 4 5]
-  "Number: " + $(item)
-<=
+"Removing duplicates in place:"
+<<(items)*
+items
+
+"Sorting in place:"
+++(items)*
+items
 ```
 
-### Example 8: Text Processing
+### Example 9: Text Processing
 
 ```lazy
-text = "Hello World from Lazy"
-words = |(text " ")
++? text : "Enter words separated by spaces: "
 
-"Words:"
-words
+words = |(text -> " ")
+"You entered " + $(#(words)) + " words"
 
-"Word count:"
-#(words)
+"Words: "
+>> word words {
+  "- " + word
+}
 
-"Join with dashes:"
-&(words "-")
+"Joined with commas: "
+&(words -> ", ")
 ```
 
-### Example 9: Temperature Converter
-
-```lazy
-c2f(celsius) =>
-  f = celsius * 9 / 5 + 32
-  -> f
-<=
-
-"Enter Celsius:"
-? temp
-fahrenheit = c2f(temp)
-$(temp) + "C = " + $(fahrenheit) + "F"
-```
-
-### Example 10: Shopping List Manager
+### Example 10: Shopping List with Mutations
 
 ```lazy
 items = []
 
-"Welcome to Shopping List"
-
-add_item() =>
-  "Add item:"
-  ? item
-  items = ^(items item)
-  "Added!"
-<=
-
-show_list() =>
-  "Your list:"
-  >> item items
-    item
-  <=
-<=
+add_item() => {
+  +? item : "Add item: "
+  ^(items -> item)*              // Mutate items directly
+}
 
 add_item()
 add_item()
 add_item()
-show_list()
 
-"Total items: " + $(#(items))
+"Your list:"
+>> item items {
+  item
+}
+
+"Total: " + $(#(items))
 ```
 
-### Example 11: Dice Roller
+### Example 11: Number Guessing Game
 
 ```lazy
-roll_dice(sides) =>
-  result = ?=(sides) + 1
-  -> result
-<=
+secret = ?=(10) + 1
 
-"Rolling 6-sided dice:"
-d6 = roll_dice(6)
-"You rolled: " + $(d6)
+"I'm thinking of a number 1-10"
 
-"Rolling 20-sided dice:"
-d20 = roll_dice(20)
-"You rolled: " + $(d20)
++? guess : "Your guess: "
+
+? guess == secret {
+  "You win!"
+}
+?? guess > secret {
+  "Too high!"
+}
+?? {
+  "Too low!"
+}
 ```
 
-### Example 12: FizzBuzz
+### Example 12: Temperature Converter
 
 ```lazy
-fizzbuzz(max) =>
+c2f(celsius) ~> celsius * 9 / 5 + 32
+f2c(fahrenheit) ~> (fahrenheit - 32) * 5 / 9
+
++? temp : "Enter Celsius: "
+"Fahrenheit: " + $(c2f(temp))
+
++? temp : "Enter Fahrenheit: "
+"Celsius: " + $(f2c(temp))
+```
+
+### Example 13: FizzBuzz
+
+```lazy
+fizzbuzz(max) => {
   counter = 1
-  @ counter <= max
+  @ counter <= max {
     output = ""
     
-    ? counter % 3 == 0
+    ? counter % 3 == 0 {
       output = "Fizz"
-    <=
+    }
     
-    ? counter % 5 == 0
+    ? counter % 5 == 0 {
       output = output + "Buzz"
-    <=
+    }
     
-    ? #(output) == 0
+    ? #(output) == 0 {
       $(counter)
-    <=
+    }
     
-    ? #(output) > 0
+    ? #(output) > 0 {
       output
-    <=
+    }
     
     counter = counter + 1
-  <=
-<=
+  }
+}
 
 fizzbuzz(20)
 ```
 
-## File Structure for Projects
+### Example 14: Interactive Calculator
 
-**program.lazy:**
 ```lazy
-"My Lazy Program"
+calculator() => {
+  +? operation : "Choose operation (+, -, *, /): "
+  
+  "Enter two numbers:"
+  result = 0
+  
+  ? operation == "+" {
+    result = add(+?? +??)
+  }
+  ?? operation == "-" {
+    result = subtract(+?? +??)
+  }
+  ?? operation == "*" {
+    result = multiply(+?? +??)
+  }
+  ?? operation == "/" {
+    result = divide(+?? +??)
+  }
+  
+  -> result
+}
 
-main() =>
-  "Starting..."
-  run_program()
-  "Done!"
-<=
+add(a b) ~> a + b
+subtract(a b) ~> a - b
+multiply(a b) ~> a * b
+divide(a b) ~> a / b
 
-run_program() =>
-  "Enter your name:"
-  ? name
-  "Hello " + name
-<=
-
-main()
+result = calculator()
+"Result: " + $(result)
 ```
 
-## Running Your Programs
+### Example 15: Unicode Variables
 
-### Command Line
+```lazy
+// Russian
+привет(имя) ~> "Привет, " + имя + "!"
+привет("Марат")
 
-**Windows:**
-```cmd
-lazy.exe myprogram.lazy
+// Chinese
+加(甲 乙) ~> 甲 + 乙
+加(5 10)
+
+// Arabic
+رقم = 42
+رقم * 2
 ```
 
-**Linux/Mac:**
-```bash
-./lazy myprogram.lazy
+### Example 16: Leaderboard System
+
+```lazy
+scores = [450 320 580 420 580]
+
+"Original scores:"
+scores
+
+"Removing duplicates in place:"
+<<(scores)*
+scores
+
+"Sorting descending in place:"
+--(scores)*
+scores
+
+"Top 3:"
+"1st place: " + $(scores[0])
+"2nd place: " + $(scores[1])
+"3rd place: " + $(scores[2])
 ```
 
-### Create Batch File (Windows)
+## Complete Quick Reference
 
-**run.bat:**
-```batch
-@echo off
-lazy.exe %1
-pause
+### Input System
 ```
-
-Then:
-```cmd
-run.bat myprogram.lazy
++?              Input (basic prompt)
++? var          Input single variable
++? a b c        Input multiple variables
++? var : "text" Input with custom prompt
++? a b : "{?}"  Iterative input (numbered)
++??             Inline temporary input
 ```
-
-### Create Shell Script (Linux/Mac)
-
-**run.sh:**
-```bash
-#!/bin/bash
-./lazy "$1"
-```
-
-Make executable:
-```bash
-chmod +x run.sh
-./run.sh myprogram.lazy
-```
-
-## Quick Reference Card
 
 ### Symbols
 ```
-?      Ask input OR check condition
+??     Else-if OR else
 @      Loop while condition true
 >>     For-each loop through list
-->     Return value from function
+->     Return value OR parameter arrow
 =>     Start function definition
-<=     End block (function/loop/if)
+~>     Quick function (one-liner)
+}      End block
 =      Assign to variable
+*      Mutate in-place (suffix)
 ```
 
 ### Operators
 ```
-#(x)       Length/count
-$(x)       Convert to string  
-~(x)       Convert to number
-^(list x)  Push to list
-v(list)    Pop from list
-&(list s)  Join list with separator
-|(str s)   Split string by separator
-!(bool)    Boolean NOT
-?=(max)     Random 0 to max-1
+// Core
+#(x)         Length/count
+$(x)         Convert to string  
+~(x)         Convert to number
+!(bool)      Boolean NOT
+?=(max)      Random 0 to max-1
+
+// List basics
+^(list -> val)    Push to list
+v(list)           Pop from list
+
+// List advanced
+<>(list)          Reverse list
+++(list)          Sort ascending
+--(list)          Sort descending
+><(list -> val)   Contains/search
+<<(list)          Remove duplicates
+
+// Mutations (add * suffix)
+^(list -> val)*   Push and mutate
+++(list)*         Sort ascending and mutate
+--(list)*         Sort descending and mutate
+<>(list)*         Reverse and mutate
+<<(list)*         Remove duplicates and mutate
+v(list)*          Pop and mutate
+
+// String
+&(list -> sep)    Join with separator
+|(str -> sep)     Split by separator
 ```
 
-### Comparisons
+### Comparisons & Math
 ```
+// Comparisons
 >   Greater than
 <   Less than
 ==  Equal to
 !=  Not equal
 >=  Greater or equal
-<=  Less or equal (also ends blocks!)
-```
+<=  Less or equal
 
-### Math
-```
+// Math
 +   Add
 -   Subtract
 *   Multiply
@@ -673,27 +887,160 @@ v(list)    Pop from list
 
 ### Values
 ```
-yes / no   Booleans
-"text"     Strings  
-42         Numbers
-[1 2 3]    Lists
+yes / no      Booleans
+"text"        Strings  
+42            Numbers
+[1 2 3]       Lists
+```
+
+## Mutation vs Immutability
+
+**Default: Immutable (Safe)**
+```lazy
+numbers = [1 2 3]
+new_numbers = ^(numbers -> 4)    // Returns new list
+numbers                           // Still [1 2 3]
+new_numbers                       // [1 2 3 4]
+```
+
+**With `*`: Mutable (Efficient)**
+```lazy
+numbers = [1 2 3]
+^(numbers -> 4)*                  // Mutates numbers
+numbers                           // Now [1 2 3 4]
+```
+
+**When to use each:**
+
+**Immutable (no `*`)** - Use when:
+- You need to keep the original data
+- Working with multiple versions of data
+- Building data transformation pipelines
+- Safety is more important than memory
+
+**Mutable (with `*`)** - Use when:
+- You don't need the original data
+- Working with large lists (saves memory)
+- Building in-place algorithms
+- Performance is important
+
+## If-Else Reference
+
+```lazy
+// If
+? condition {
+  // code
+}
+
+// If-else
+? condition {
+  // code
+}
+?? {
+  // else code
+}
+
+// If-else-if-else
+? condition1 {
+  // code
+}
+?? condition2 {
+  // code
+}
+?? condition3 {
+  // code
+}
+?? {
+  // else code
+}
+```
+
+## Function Reference
+
+```lazy
+// Standard function
+name(params) => {
+  // code
+  -> value
+}
+
+// Quick function (one-liner)
+name(params) ~> expression
+
+// Examples
+add(a b) ~> a + b
+greet(name) ~> "Hello " + name
+square(x) ~> x * x
+
+// With inline input
+add(5 +??)              // One input value
+add(+?? +??)            // Two input values
+multiply(10 +?? 20)     // Mix values and input
 ```
 
 ## Tips & Best Practices
 
-1. **Always end blocks with `<=`** - Functions, loops, and conditionals all need it!
+1. **Always use `{}` for blocks** - Makes code structure clear
 
-2. **Use descriptive variable names** - Since there are no types, names help!
+2. **Use descriptive variable names** - Even in your native language
 
 3. **Space-separate list items** - `[1 2 3]` not `[1,2,3]`
 
-4. **Context for `?`** - If it has comparison operators, it's a condition. Otherwise, it's input.
+4. **Use `->` for clarity** - `^(list -> value)` is clearer than `^(list value)`
 
-5. **Convert types explicitly** - Use `$()` for strings, `~()` for numbers
+5. **Quick functions for simple logic** - Use `~>` when function is one expression
 
-6. **Remember symbol meanings** - Visual aids help! `^` up = add, `v` down = remove
+6. **Leverage mutations for efficiency** - Use `*` when you don't need the original
 
-7. **One statement per line** - Keep it simple and readable
+7. **Custom prompts improve UX** - Always provide clear prompts for input
+
+8. **Use iterative input for similar data** - Great for arrays of numbers
+
+9. **Unicode variables are powerful** - Code in your native language
+
+10. **Negative indices for lists** - `list[-1]` gets last item
+
+11. **Inline input for flexibility** - Use `+??` when you don't need to store the value
+
+12. **Default to immutable** - Use mutations (`*`) only when needed
+
+## Unicode Support
+
+Lazy fully supports Unicode! You can write code in ANY language:
+
+**Russian:**
+```lazy
+функция(аргумент) ~> аргумент * 2
+число = 42
+функция(число)
+```
+
+**Chinese:**
+```lazy
+函数(参数) ~> 参数 + 10
+数字 = 5
+函数(数字)
+```
+
+**Arabic:**
+```lazy
+وظيفة(قيمة) ~> قيمة * 3
+رقم = 7
+وظيفة(رقم)
+```
+
+**Japanese:**
+```lazy
+関数(値) ~> 値 / 2
+数 = 100
+関数(数)
+```
+
+**Mix languages:**
+```lazy
+calculate(число value số) ~> число + value + số
+calculate(10 20 30)
+```
 
 ## Philosophy
 
@@ -702,62 +1049,115 @@ yes / no   Booleans
 Keywords require you to remember specific words in English. Symbols are:
 - **Universal** - Work across all languages
 - **Visual** - You can see what they do
-- **Minimal** - Only 7 core symbols to learn
-- **Intuitive** - `@` looks like a loop, `?` asks questions
+- **Minimal** - Only 8 core symbols to learn
+- **Intuitive** - `@` looks like a loop, `+?` asks for input
+- **Inclusive** - Unicode support means code in any language
 
 **Lazy is designed for:**
 - Teaching programming basics
 - Quick prototyping
 - Fun coding experiments
 - Educational projects
+- Multilingual programmers
 
 ## What's Not in Lazy?
 
 Lazy deliberately excludes:
 - Classes/Objects
-- Imports/Modules  
+- Imports/Modules
 - Exceptions
 - Pointers
-- Types
+- Type declarations
 
 This keeps it **lazy** and **easy**!
 
-## Error Messages
+## Error Handling
 
-Lazy tries to be forgiving, but if something goes wrong:
-- Missing `<=` - Your block won't close properly
+Lazy tries to be forgiving:
+- Missing `}` - Your block won't close properly
 - Wrong type - Operations return `nothing`
 - Bad index - Returns `nothing`
 - Missing file - Prints error message
 
-## Limitations
+## Limitations (By Design)
 
-- **Lists aren't nested deeply** - Keep it simple!
+- **Simple structure** - Keep it straightforward
 - **No file I/O** - Just stdin/stdout
 - **No classes** - Just functions and data
 - **Single file programs** - No imports
+- **Dynamic typing only** - No type declarations
 
 These are features, not bugs! Lazy stays lazy!
 
-## Summary
+## Summary of v1.1 Improvements
 
-**You just learned the world's simplest programming language!**
+### Input System
+- Custom prompts with `:`
+- Multiple variables in one statement
+- Iterative input with `{?}`
+- Inline input with `+??`
 
-- 7 symbols control everything
-- 10 symbol functions do common tasks
-- No keywords to memorize
-- Visual, intuitive syntax
+### Control Flow
+- If-else-if chains with `??`
+- Clear scope with `{}`
+- Better readability
 
-Now go build something lazy! 
+### Functions
+- Quick functions with `~>`
+- Arrow parameters with `->`
+- One-liner definitions
+- Inline input support
+
+### Lists
+- Reverse `<>`
+- Sort `++` / `--`
+- Search `><`
+- Unique `<<`
+- Negative indices
+- **Mutation operators with `*`**
+
+### Language
+- Full Unicode support
+- Any language for variables
+- International friendly
+
+## Learning Path
+
+1. **Start Simple** - Variables, printing, basic math
+2. **Input & Output** - Learn the input system with `+?`
+3. **Conditions** - If-else-if chains
+4. **Loops** - `@` and `>>`
+5. **Functions** - Start with `~>`, move to `=>`
+6. **Lists** - Basic operations first
+7. **Advanced Lists** - Sorting, searching, mutations
+8. **Put It Together** - Build complete programs
+
+## Project Ideas
+
+1. **Calculator** - Use quick functions and inline input
+2. **Quiz Game** - Practice if-else chains
+3. **Todo List** - Master list mutations
+4. **Gradebook** - Sorting and statistics
+5. **Text Analyzer** - String operations
+6. **Number Guessing** - Random and input
+7. **Shopping Cart** - Full CRUD operations
+8. **Leaderboard** - Sorting and unique values
+9. **Multilingual App** - Use Unicode variables
+10. **Data Processor** - All list operations
+
+## Support
+
+Need help? Remember:
+- Read error messages carefully
+- Check your `}` closing braces
+- Use REPL to test snippets
+- Start simple, build up complexity
+- Remember: `*` for mutations, without for new copies
+
+**Remember:** If it feels like work, you're doing it wrong! Stay lazy!
 
 ---
 
-**Examples to Try:**
-
-1. Make a calculator
-2. Build a quiz game
-3. Create a todo list
-4. Write a story generator
-5. Build a number guessing game
-
-**Remember:** If it feels like work, you're doing it wrong! Stay lazy!
+**Version:** 1.1.0 
+**License:** Feel free to use and modify  
+**Philosophy:** Programming should be easy, visual, and universal
